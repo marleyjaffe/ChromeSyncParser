@@ -71,6 +71,7 @@ class SyncFile():
         self.FirstName()
         self.LastName()
         self.DateOfBirth()
+        self.RecoveryPhoneNumber()
 
 
     def SQLiteTables(self):
@@ -140,7 +141,7 @@ class SyncFile():
         return self.recoveryEmail
 
     def FirstName(self):
-        self.firstName = ""
+        self.firstName = False
         for row in self.metadata:
             name = str(row[18])[15:24]
             if name == "FirstName":
@@ -150,7 +151,7 @@ class SyncFile():
         return self.firstName
 
     def LastName(self):
-        self.lastName = ""
+        self.lastName = False
         for row in self.metadata:
             name = str(row[18])[15:23]
             if name == "LastName":
@@ -160,7 +161,11 @@ class SyncFile():
         return self.lastName
 
     def GetFullName(self):
-        return str(self.firstName+" "+self.lastName)
+        if self.firstName and self.lastName:
+            return str(self.firstName + " " + self.lastName)
+        else:
+            return "No Full Name Available"
+
 
     def DateOfBirth(self):
         self.DOB = "~~~~~~"
@@ -175,7 +180,18 @@ class SyncFile():
                 self.DOB = self.DOB[:2] + str(row[18][25:])
 
     def GetFullInfo(self):
+        # Returns a list inside a list for printing unification
         return [[self.GetFullName(), self.DOB]]
+
+    def RecoveryPhoneNumber(self):
+        self.recoveryPhone = False
+        for row in self.metadata:
+            name = str(row[18])[15:28]
+            if name == "RecoveryPhone":
+                self.recoveryPhone = str(row[18][35:])
+
+    def GetRecoveryPhone(self):
+        return self.recoveryPhone
 
 def DisplayData(data):
     """
@@ -209,6 +225,9 @@ def main():
         print()
         print("Recovery Email".center(35, "="), "\n")
         DisplayData(syncFile.GetRecoveryEmail())
+        print()
+        print("Recovery Phone".center(35, "="), "\n")
+        DisplayData(syncFile.GetRecoveryPhone())
         print()
 
 
