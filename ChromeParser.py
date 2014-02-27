@@ -4,7 +4,7 @@ import sqlite3 as lite
 import argparse
 import os
 import time
-import glob
+#import glob
 
 
 def ParseCommandLine():
@@ -72,6 +72,7 @@ class SyncFile():
         self.LastName()
         self.DateOfBirth()
         self.RecoveryPhoneNumber()
+        self.Extensions()
 
 
     def SQLiteTables(self):
@@ -193,6 +194,22 @@ class SyncFile():
     def GetRecoveryPhone(self):
         return self.recoveryPhone
 
+    def Extensions(self):
+        self.extension = False
+        for row in self.metadata:
+            if str(row[23])[:15] == "b'\\xba\\xbf\\x17i":
+                if self.extension:
+                    self.extension.append(str(row[18]))
+                else:
+                    self.extension = [str(row[18])]
+
+    def GetExtensions(self):
+        if self.extension:
+            return self.extension
+        else:
+            return "No extensions found"
+
+
 def DisplayData(data):
     """
     Prints lists that has lists of pairs, second usually being a formatted date, or prints entire passed list
@@ -229,9 +246,9 @@ def main():
         print("Recovery Phone".center(35, "="), "\n")
         DisplayData(syncFile.GetRecoveryPhone())
         print()
-
-
-
+        print("Extensions(s)".center(35, "="), "\n")
+        DisplayData(syncFile.GetExtensions())
+        print()
 
 
 if __name__ == '__main__':
