@@ -29,3 +29,5 @@ Mac OS X:
 Linux:
     ~/.config/google-chrome/Default/databases
 
+Note:
+    If Chrome browser is open, the sync database may be open and can cause the program to error

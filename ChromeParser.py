@@ -4,7 +4,8 @@ import sqlite3 as lite
 import argparse
 import os
 import time
-#import glob
+import glob
+import platform
 
 
 def ParseCommandLine():
@@ -27,6 +28,9 @@ def ParseCommandLine():
     parser.add_argument('-d', '--database', type=ValidateDatabase,
                         help="Full path to database in question")
 
+    parser.add_argument('-p', '--path', default = False,
+                        help="Starting Path to where the database should recursively look for databases")
+
     # Verbose CLI argument, enables error printing etc.
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="Makes the program print extra information to the screen")
@@ -45,7 +49,34 @@ def ValidateDatabase(filePath):
         raise argparse.ArgumentTypeError("Error: Path is not valid")
 
 
-#def OSGlob():
+def GetDatabases(startingPath):
+    databaseList = []
+
+    if platform.system() == "Windows":
+        if platform.release() == "7":
+            if startingPath:
+                databasePath = startingPath + "\\Users\\*\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
+            else:
+                databasePath = "C:\\Users\\*\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
+    elif platform.system() == "Windows":
+        if platform.release() == "XP":
+            if startingPath:
+                databasePath = startingPath + "\\Documents and Settings\\*\\Application Support\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
+            else:
+                databasePath = "C:\\Documents and Settings\\*\\Application Support\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
+    elif platform.system() == "Darwin":
+        if startingPath:
+            databasePath = startingPath +"/Users/*/Library/Application Support/Google/Chrome/Default/Sync Data/SyncData.sqlite3"
+        else:
+            databasePath = "/Users/*/Library/Application Support/Google/Chrome/Default/Sync Data/SyncData.sqlite3"
+    else:
+        print("ERROR: no system detected")
+        return databaseList
+
+    for file in glob.glob(databasePath):
+        databaseList.append(SyncFile(file))
+    return databaseList
+
 
 class SyncFile():
     def __init__(self, database):
@@ -229,6 +260,9 @@ def main():
     syncList = []
     if args.database:
         syncList.append(SyncFile(args.database))
+    else:
+        syncList = GetDatabases(args.path)
+
 
     for syncFile in syncList:
         print("Email Account".center(35, "="), "Time added".center(20, "="), "\n")
