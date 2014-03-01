@@ -7,8 +7,10 @@ import time
 import glob
 import platform
 
+# Sets Global variables for verbosity and outFile
 verbosity = 3
 outFile = False
+
 
 def ParseCommandLine():
     """
@@ -27,23 +29,38 @@ def ParseCommandLine():
                                      description='Pulls and Parses the relevant Chrome Sync Databases')
 
     # Adds arguments to the parser object
+    # Creates a link to a database outside of the normal system path
     parser.add_argument('-d', '--database', type=ValidateDatabase,
                         help="Full path to database in question")
 
-    parser.add_argument('-p', '--path', default = False,
+    # Allows the user to create a starting path for a system extraction.
+    # If set the program will go to this path before going into each users folder
+    parser.add_argument('-p', '--path', default=False,
                         help="Starting Path to where the database should recursively look for databases")
 
     # Verbose CLI argument, enables error printing etc.
     parser.add_argument('-v', '--verbose', type=int, default=3,
                         help="Makes the program print extra information to the screen")
 
+    # Allows the output from the program to be saved to a file.
+    # If no file is set, the program will print data to the screen.
     parser.add_argument('-f', '--outFile', default=False, help="allows the output to be stored to a file")
 
     return parser.parse_args()
-    # End ParseCommandLine ================================================
+    # End ParseCommandLine ================================
 
 
 def ValidateDatabase(filePath):
+    """
+    Name:           ValidateDatabase
+
+    Description:    Checks the passed database to ensure its readable and a file
+
+    Input:          The path to the file
+
+    Actions:        Checks the file to ensure it is a file and is readable
+
+    """
     if os.path.isfile(filePath):		 # Checks to ensure the file exists
         if os.access(filePath, os.R_OK): # Checks to ensure the program has read access
             return filePath
@@ -51,62 +68,110 @@ def ValidateDatabase(filePath):
             raise argparse.ArgumentTypeError("Error: File is not readable")
     else:
         raise argparse.ArgumentTypeError("Error: Path is not valid")
+    # End ValidateDatabase ================================
 
 
 def GetDatabases(startingPath):
+    """
+    Name:           GetDatabases
+
+    Description:    Runs through each users directory on a system to pull the SyncData.sqlite3 file
+                    Also has the capability to have this search start in a new location
+                        This is useful for file exports when keeping folder structure
+
+    Input:          Starting Path, either the starting path or False
+
+    Actions:        Checks the System type and release.
+                    Uses Globing to pull each SyncData.sqlite3 file
+                    Adds the found database paths to a list and returns the list
+
+    """
+
+    # Creates a blank list
     databaseList = []
 
     # TODO Allow the examination of a windows export on mac system and vice versa. Done by passing platform as var
     try:
+        # Checks if the running system is Windows
         if platform.system() == "Windows":
+            # Checks if the system is 7 or XP
             if platform.release() == "7":
+                # Checks if there was a starting path provided
                 if startingPath:
+                    # Sets the databasePath to the the OS specific path with the starting path defined.
                     databasePath = startingPath + "\\Users\\*\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
                 else:
+                    # Sets the databasePath to the the OS specific path.
                     databasePath = "C:\\Users\\*\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
-        elif platform.system() == "Windows":
-            if platform.release() == "XP":
+            elif platform.release() == "XP":
                 if startingPath:
+                    # Sets the databasePath to the the OS specific path with the starting path defined.
                     databasePath = startingPath + "\\Documents and Settings\\*\\Application Support\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
                 else:
+                    # Sets the databasePath to the the OS specific path
                     databasePath = "C:\\Documents and Settings\\*\\Application Support\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
         elif platform.system() == "Darwin":
             if startingPath:
+                # Sets the databasePath to the the OS specific path with the starting path defined.
                 databasePath = startingPath +"/Users/*/Library/Application Support/Google/Chrome/Default/Sync Data/SyncData.sqlite3"
             else:
+                # Sets the databasePath to the the OS specific path
                 databasePath = "/Users/*/Library/Application Support/Google/Chrome/Default/Sync Data/SyncData.sqlite3"
         else:
-            Report("ERROR: no system detected", 2)
+            Report("ERROR: no system detected", 3)
             return databaseList
     except Exception as err:
         Report(str(err),2)
 
+    # Performs the actual glob search using the previously defined databasePath
     for file in glob.glob(databasePath):
+        # Adds each found database to the databaseList
         databaseList.append(SyncFile(file))
+    # Returns the databaseList
     return databaseList
+    # End GetDatabases ====================================
 
 
 class SyncFile():
     def __init__(self, database):
+        """
+        Name:           SyncFile
+
+        Description:    Creates objects from passed database
+
+        Input:          Path to the syncFile Database
+
+        Actions:        Creates the object using set functions
+                        Uses the sqlite3 library as lite
+
+        """
+        # Sets the self.database to the database path
         self.database = database
 
+        # Creates a connection to the database
         self.connection = lite.connect(self.database)
+        # Creates a cursor object for the database
         self.cursor = self.connection.cursor()
 
+        # Sets the initial database tables to nothing
         self.tables = []
+
         # Checks to see if the passed database is locked. If so, will raise the error and stop creating the object.
+        # Also sets the tables var
         try:
+            # Runs the objects SQLiteTables function
             self.SQLiteTables()
         except lite.OperationalError as err:
             raise err
+        # Will initiate the userAccount var
         self.UserInfo()
 
-        #for user in self.userAccount:
-            #print(self.ConvertTime(user[1]))
-
+        # Gets all data from the metas table from the database
         self.cursor.execute("SELECT * FROM `metas`;")
         # Fill the metadata var with the contents of the metas table
         self.metadata = self.cursor.fetchall()
+
+        # Used to set Object variables
 
         self.Encrypted()
         self.AttachedComputers()
@@ -118,35 +183,73 @@ class SyncFile():
         self.Extensions()
         self.HTTPSites()
         self.HTTPSSites()
+        # End __init__ ====================================
 
 
     def SQLiteTables(self):
         """
-        Sets a list of the tables in the SQLite database should always be 5
-            deleted_metas, metas, models, share_info, share_version
+        Name:           SQLiteTables
+
+        Description:    Sets a list of the tables in the SQLite database
+
+        Input:          None
+
+        Actions:        Uses the sqlite_master tables to pull all tables names
+
+        Note:           should always be 5 tables
+                            deleted_metas, metas, models, share_info, share_version
         """
         try:
             self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        # Will error out if database is locked due to database being open (Chrome open)
         except lite.OperationalError as err:
             raise err
+        # Sets the tables to all the records in the cursor
         self.tables = self.cursor.fetchall()
         # Removes the tuple and returns just the names in the list
         self.tables = [i[0] for i in self.tables]
+        # End SQLiteTables ================================
 
     def UserInfo(self):
+        """
+        Name:           UserInfo
+
+        Description:    Pulls the name and create time from the share_info table
+
+        Input:          None
+
+        Actions:        Pulls the name and db_create_time from the share_info table sets the out put to self.userAccount
+        """
         self.userAccount = []
         self.cursor.execute("SELECT `name`, `db_create_time` FROM `share_info`;")
         # Returns a tuple of email account and creation time in epoch
         self.userAccount = self.cursor.fetchall()
+        # End UserInfo ====================================
 
     def ConvertTime(self, timeInEpoch):
         """
-        Converts seconds since epoch into readable format (2014-02-24 21:49:54)
+        Name:           ConvertTime
+
+        Description:    Converts seconds since epoch into readable format (2014-02-24 21:49:54)
+
+        Input:          Epoch Time in seconds
+
+        Actions:        Uses the time library to format passed epoch time
         """
         return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timeInEpoch))
+        # End ConvertTime =================================
 
-    # Sets the ComputerNames list to the values from column 19 in the metadata file
     def AttachedComputers(self):
+        """
+        Name:           AttachedComputers
+
+        Description:    Sets the computer names that the users has logged into
+
+        Input:          None
+
+        Actions:        Runs through each row in the metas table and adds the found computers to a list
+                        Sets the ComputerNames list to the values from column 19 in the metadata file
+        """
         self.computerNames = []
         for row in self.metadata:
             # b'\xd2\xb9 is the signature for a computer, remove false positives that don't have enough data
@@ -154,10 +257,20 @@ class SyncFile():
                 # Adds a list item to the list with the computer name in [0] and date first signed in to [1]
                 # Row 7 needs to be divided by 1000 because the value is stored in milliseconds since epoch
                 self.computerNames.append([row[18], row[7]/1000])
+        # End AttachedComputers ===========================
 
     def GetUserInfo(self):
         """
-        Returns list of list, each mini list has user email and when Chrome was first signed in
+        Name:           GetUserInfo
+
+        Description:    Returns list of list, each mini list has user email and when Chrome was first signed in
+
+        Input:          None
+
+        Actions:        Needs UserInfo function to be run prior to get userAccount initialized
+                        converts time stored in userAccount's list of tuples into human readable
+                        Uses ConvertTime function
+                        returns the new list
         """
         users = []
         for user in self.userAccount:
@@ -166,10 +279,20 @@ class SyncFile():
             tempList.append(self.ConvertTime(user[1]))
             users.append(tempList)
         return users
+        # End GetUserInfo =================================
 
     def GetAttachedComputers(self):
         """
-        Retuns list of lists, each mini list has computer string name and date account was added to that account
+        Name:           GetAttachedComputers
+
+        Description:    Returns list of lists, each mini list has computer string name and date account was added
+
+        Input:          None
+
+        Actions:        Needs AttachedComputers function to be run prior to get computerNames initialized
+                        converts time stored in computerNames's list of tuples into human readable
+                        Uses ConvertTime function
+                        returns the new list
         """
         computerInfo = []
         for computer in self.computerNames:
@@ -178,6 +301,7 @@ class SyncFile():
             tempList.append(self.ConvertTime(computer[1]))
             computerInfo.append(tempList)
         return computerInfo
+        # End GetAttachedComputers ========================
 
     def RecoveryEmail(self):
         self.recoveryEmail = False
