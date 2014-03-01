@@ -642,7 +642,16 @@ class SyncFile():
 
 def DisplayData(data):
     """
-    Prints lists that has lists of pairs, second usually being a formatted date, or prints entire passed list
+    Name:           DisplayData
+
+    Description:    Prints lists that has lists of pairs, second usually being a formatted date
+                        or prints entire passed list
+
+    Input:          data, either a list of lists, a list, or a string
+
+    Actions:        Checks if the passed var is a list
+                        prints the values in the list, formats them if they are tuples of two
+                    Prints the passed data if not a list
     """
     if isinstance(data, list):
         for item in data:
@@ -652,29 +661,64 @@ def DisplayData(data):
                 Report(str(item))
     else:
         Report(str(data))
+    # End DisplayData =====================================
 
 
 def Report(msg, level=False):
     """
-    Prints the msg based on the verbosity level. if no verbosity level passed, it will print the message.
-    Higher levels are more important. A 1 verbosity will print everything, a 2 will print level 2&3, a 3 will print 3
-    """
+    Name:           Report
 
+    Description:    Custom outputter  with verbosity checker, will print to screen or file depending on arguments
+
+    Input:          Message which to be displayed: String
+                    Importance level: Int
+
+    Action:         Prints the msg based on the verbosity level.
+                    If no verbosity level passed, it will print the message.
+                    Higher levels are more important. A 1 verbosity will print everything,
+                    a 2 will print level 2&3, a 3 will print 3
+
+                    Messages with out level are Data
+                    Level 1 messages are statuses
+                    Level 2 messages are errors
+                    Level 3 messages are critical errors
+    """
+    # Checks if a level was provided
     if not level:
+        # Determines if a output file was set
         if not outFile:
+            # If no output file was set, print to the screen
             print(msg)
         else:
+            # If output file was set, add data to a new line in that file
             outFile.write(msg+'\n')
+    # Makes sure importance level is higher than the verbosity filter
     elif level >= verbosity:
+        # Prints to screen if output file was not set
         if not outFile:
             print(msg)
+        # If output file was set, add data to a new line in that file
         else:
             outFile.write(msg+'\n')
+    # End Report ==========================================
 
 
 def CheckFile(filePath):
+    """
+    Name:           CheckFile
+
+    Description:    Checks if the file is create, else creates it
+
+    Input:          path to desired file
+
+    Actions:        If the file path is a False value, return False
+                    Output changes if file does or does not exits
+                    Will write over the file if it exists
+    """
+    # If the filePath is false return it
     if not filePath:
         return filePath
+    # Checks to see if the file is already existing, returns opened file
     elif os.path.exists(filePath):
         f = open(filePath, "w")
         Report("File {0} already exists, writing over it\n".format(filePath), 1)
@@ -683,18 +727,32 @@ def CheckFile(filePath):
         f = open(filePath, "w")
         Report("File {0} does not exist, creating it\n".format(filePath), 1)
         return f
+    # End CheckFile =======================================
 
 
 def main():
+    # Allows modification of global variables
     global verbosity
     global outFile
 
+    # Parses the command line to args object
     args = ParseCommandLine()
+    # Sets blank list of sync files, this will be used to store all the sync file objects
     syncList = []
+    # Sets the global verbosity level to what is passed in the args
     verbosity = args.verbose
+    # Uses the the CheckFile function to open the argument passed file if one was passed
     outFile = CheckFile(args.outFile)
 
+    # Data about the program for the user
+    print("ChromeParser.py")
+    print("Created by Marley Jaffe")
+    print("version = 1.00")
+    print()
+
+    # Checks if a single database was passed to the program
     if args.database:
+        # Will error out if the object fails to create properly
         try:
             syncList.append(SyncFile(args.database))
         except Exception as err:
@@ -705,11 +763,16 @@ def main():
         except Exception as err:
             Report(err, 3)
 
+    # Loops through the syncList to run commands on each database object
     for syncFile in syncList:
+        # Displays what the database the results are from
         Report("\nDatabase: {0}\n".format(syncFile.database).center(56))
+        # Every syncFile will have a email account associated with it
         Report("Email Account".center(35, "=")+" "+"Time added".center(20, "=")+"\n")
+        # Display the email account and the time it was added
         DisplayData(syncFile.GetUserInfo())
         Report("")
+        # If a full name and a DOB exist
         if syncFile.GetFullInfo():
             Report("Full Name".center(35, "=")+" "+"DOB (DDYYYY)".center(20, "=")+"\n")
             DisplayData(syncFile.GetFullInfo())
