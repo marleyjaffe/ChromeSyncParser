@@ -53,6 +53,7 @@ def ValidateDatabase(filePath):
 def GetDatabases(startingPath):
     databaseList = []
 
+    # TODO Allow the examination of a windows export on mac system and vice versa. Done by passing platform as var
     try:
         if platform.system() == "Windows":
             if platform.release() == "7":
@@ -104,6 +105,7 @@ class SyncFile():
         # Fill the metadata var with the contents of the metas table
         self.metadata = self.cursor.fetchall()
 
+        self.Encrypted()
         self.AttachedComputers()
         self.RecoveryEmail()
         self.FirstName()
@@ -111,6 +113,8 @@ class SyncFile():
         self.DateOfBirth()
         self.RecoveryPhoneNumber()
         self.Extensions()
+        self.HTTPSites()
+        self.HTTPSSites()
 
 
     def SQLiteTables(self):
@@ -173,11 +177,14 @@ class SyncFile():
         return computerInfo
 
     def RecoveryEmail(self):
-        self.recoveryEmail = []
+        self.recoveryEmail = False
         for row in self.metadata:
             # b'\x8a\xbf\x0f5 is the signature for a recovery email
             if str(row[23])[:15] == "b'\\x8a\\xbf\\x0f5":
-                self.recoveryEmail.append(str(row[18])[36:])
+                if self.recoveryEmail:
+                    self.recoveryEmail.append(str(row[18])[36:])
+                else:
+                    self.recoveryEmail = [str(row[18])[36:]]
 
     def GetRecoveryEmail(self):
         return self.recoveryEmail
@@ -206,24 +213,37 @@ class SyncFile():
         if self.firstName and self.lastName:
             return str(self.firstName + " " + self.lastName)
         else:
-            return "No Full Name Available"
-
+            return False
 
     def DateOfBirth(self):
-        self.DOB = "~~~~~~"
+        self.DOB = False
         for row in self.metadata:
             name = str(row[18])[15:23]
             if name == "BirthDay":
-                date = str(row[18][24:])
-                if len(date) == 1:
-                    date = "0"+ date
-                self.DOB = date + self.DOB[2:]
+                if self.DOB:
+                    date = str(row[18][24:])
+                    if len(date) == 1:
+                        date = "0"+ date
+                    self.DOB = date + self.DOB[2:]
+                else:
+                    self.DOB = "------"
+                    date = str(row[18][24:])
+                    if len(date) == 1:
+                        date = "0"+ date
+                    self.DOB = date + self.DOB[2:]
             elif name == "BirthYea":
-                self.DOB = self.DOB[:2] + str(row[18][25:])
+                if self.DOB:
+                    self.DOB = self.DOB[:2] + str(row[18][25:])
+                else:
+                    self.DOB = "------"
+                    self.DOB = self.DOB[:2] + str(row[18][25:])
 
     def GetFullInfo(self):
         # Returns a list inside a list for printing unification
-        return [[self.GetFullName(), self.DOB]]
+        if self.GetFullName() and self.DOB:
+            return [[self.GetFullName(), self.DOB]]
+        else:
+            return False
 
     def RecoveryPhoneNumber(self):
         self.recoveryPhone = False
@@ -245,11 +265,47 @@ class SyncFile():
                     self.extension = [str(row[18])]
 
     def GetExtensions(self):
-        if self.extension:
             return self.extension
-        else:
-            return "No extensions found"
 
+    def Encrypted(self):
+        self.encrypted = False
+        for row in self.metadata:
+            if str(row[18]) == "encrypted":
+                self.encrypted = True
+                Report(str("NOTE: The database located at: {0} is encrypted\n".format(self.database)), 1)
+                break
+    def HTTPSites(self):
+        self.http = False
+        for row in self.metadata:
+            if row[18] == None:
+                continue
+            elif str(row[18][:7]).lower() == "http://":
+                if self.http:
+                    # TODO when visit time is determined add this in to the append function
+                    self.http.append(row[18])
+                else:
+                    self.http = [row[18]]
+
+    def HTTPSSites(self):
+        self.https = False
+        for row in self.metadata:
+            if row[18] == None:
+                continue
+            elif str(row[18][:8]).lower() == "https://":
+                if self.https:
+                    # TODO when visit time is determined add this in to the append function
+                    self.https.append(row[18])
+                else:
+                    self.https = [row[18]]
+    def GetAllSites(self):
+        if self.http and self.https:
+            return self.http + self.https
+        elif not self.https and not self.http:
+            return False
+        elif self.http:
+            return self.http
+        else:
+            return self.https
 
 def DisplayData(data):
     """
@@ -295,24 +351,59 @@ def main():
             Report(err, 3)
 
     for syncFile in syncList:
-        Report("Email Account".center(35, "=") +" "+ "Time added".center(20, "=") + "\n")
+        Report("\nDatabase: {0}\n".format(syncFile.database).center(56))
+        Report("Email Account".center(35, "=") +" "+ "Time added".center(20, "=")+"\n")
         DisplayData(syncFile.GetUserInfo())
         print()
-        Report("Full Name".center(35, "=") + " "+"DOB (DDYYYY)".center(20, "=") + "\n")
-        DisplayData(syncFile.GetFullInfo())
+        if syncFile.GetFullInfo():
+            Report("Full Name".center(35, "=") + " "+"DOB (DDYYYY)".center(20, "=")+"\n")
+            DisplayData(syncFile.GetFullInfo())
+            print()
+        else:
+            Report("Full Name".center(35, "=") + " "+"DOB (DDYYYY)".center(20, "=")+"\n", 1)
+            Report("No full info available", 1)
+            Report("", 1)
+        Report("Computer Name".center(35, "=")+" "+ "Time added".center(20, "="))
+        Report("{0} Computer(s) were synced".format(len(syncFile.GetAttachedComputers())).center(35, "_"), 1)
         print()
-        Report("Computer Name".center(35, "=")+" "+ "Time added".center(20, "=")+" "+ "\n")
         DisplayData(syncFile.GetAttachedComputers())
         print()
-        Report("Recovery Email".center(35, "=")+" "+ "\n")
-        DisplayData(syncFile.GetRecoveryEmail())
-        print()
-        Report("Recovery Phone".center(35, "=")+" "+ "\n")
-        DisplayData(syncFile.GetRecoveryPhone())
-        print()
-        Report("Extensions(s)".center(35, "=")+" "+ "\n")
-        DisplayData(syncFile.GetExtensions())
-        print()
+        if syncFile.GetRecoveryEmail():
+            Report("Recovery Email".center(35, "=")+"\n")
+            DisplayData(syncFile.GetRecoveryEmail())
+            print()
+        else:
+            Report("Recovery Email".center(35, "=")+"\n", 1)
+            Report("No Recovery email found", 1)
+            Report("", 1)
+        if syncFile.GetRecoveryPhone():
+            Report("Recovery Phone".center(35, "=")+"\n")
+            DisplayData(syncFile.GetRecoveryPhone())
+            print()
+        else:
+            Report("Recovery Phone".center(35, "=")+"\n", 1)
+            Report("No Recovery phone found", 1)
+            Report("", 1)
+        if syncFile.GetExtensions():
+            Report("Extensions(s)".center(35, "="))
+            Report("{0} Extensions were Found".format(len(syncFile.GetExtensions())).center(35, "_"), 1)
+            print()
+            DisplayData(syncFile.GetExtensions())
+            print()
+        else:
+            Report("Extensions(s)".center(35, "=")+"\n", 1)
+            Report("No Extensions found", 1)
+            Report("", 1)
+        if syncFile.GetAllSites():
+            Report("All Sites".center(35, "="))
+            Report("{0} Sites found".format(len(syncFile.GetAllSites())).center(35, "_"), 1)
+            print()
+            DisplayData(syncFile.GetAllSites())
+            print()
+        else:
+            Report("All Sites".center(35, "=")+"\n", 1)
+            Report("No sites were found", 1)
+            Report("", 1)
 
 
 if __name__ == '__main__':
