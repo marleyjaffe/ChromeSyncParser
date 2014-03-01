@@ -8,6 +8,7 @@ import glob
 import platform
 
 verbosity = 3
+outFile = False
 
 def ParseCommandLine():
     """
@@ -35,6 +36,8 @@ def ParseCommandLine():
     # Verbose CLI argument, enables error printing etc.
     parser.add_argument('-v', '--verbose', type=int, default=3,
                         help="Makes the program print extra information to the screen")
+
+    parser.add_argument('-f', '--outFile', default=False, help="allows the output to be stored to a file")
 
     return parser.parse_args()
     # End ParseCommandLine ================================================
@@ -328,17 +331,39 @@ def Report(msg, level=False):
     """
 
     if not level:
-        print(msg)
+        if not outFile:
+            print(msg)
+        else:
+            outFile.write(msg+'\n')
     elif level >= verbosity:
-        print(msg)
+        if not outFile:
+            print(msg)
+        else:
+            outFile.write(msg+'\n')
+
+
+def CheckFile(filePath):
+    if not filePath:
+        return filePath
+    elif os.path.exists(filePath):
+        f = open(filePath, "w")
+        Report("File {0} already exists, writing over it\n".format(filePath), 1)
+        return f
+    else:
+        f = open(filePath, "w")
+        Report("File {0} does not exist, creating it\n".format(filePath), 1)
+        return f
 
 
 def main():
     global verbosity
+    global outFile
 
     args = ParseCommandLine()
     syncList = []
     verbosity = args.verbose
+    outFile = CheckFile(args.outFile)
+
     if args.database:
         try:
             syncList.append(SyncFile(args.database))
@@ -354,24 +379,24 @@ def main():
         Report("\nDatabase: {0}\n".format(syncFile.database).center(56))
         Report("Email Account".center(35, "=") +" "+ "Time added".center(20, "=")+"\n")
         DisplayData(syncFile.GetUserInfo())
-        print()
+        Report("")
         if syncFile.GetFullInfo():
             Report("Full Name".center(35, "=") + " "+"DOB (DDYYYY)".center(20, "=")+"\n")
             DisplayData(syncFile.GetFullInfo())
-            print()
+            Report("")
         else:
             Report("Full Name".center(35, "=") + " "+"DOB (DDYYYY)".center(20, "=")+"\n", 1)
             Report("No full info available", 1)
             Report("", 1)
         Report("Computer Name".center(35, "=")+" "+ "Time added".center(20, "="))
         Report("{0} Computer(s) were synced".format(len(syncFile.GetAttachedComputers())).center(35, "_"), 1)
-        print()
+        Report("")
         DisplayData(syncFile.GetAttachedComputers())
-        print()
+        Report("")
         if syncFile.GetRecoveryEmail():
             Report("Recovery Email".center(35, "=")+"\n")
             DisplayData(syncFile.GetRecoveryEmail())
-            print()
+            Report("")
         else:
             Report("Recovery Email".center(35, "=")+"\n", 1)
             Report("No Recovery email found", 1)
@@ -379,7 +404,7 @@ def main():
         if syncFile.GetRecoveryPhone():
             Report("Recovery Phone".center(35, "=")+"\n")
             DisplayData(syncFile.GetRecoveryPhone())
-            print()
+            Report("")
         else:
             Report("Recovery Phone".center(35, "=")+"\n", 1)
             Report("No Recovery phone found", 1)
@@ -387,9 +412,9 @@ def main():
         if syncFile.GetExtensions():
             Report("Extensions(s)".center(35, "="))
             Report("{0} Extensions were Found".format(len(syncFile.GetExtensions())).center(35, "_"), 1)
-            print()
+            Report("")
             DisplayData(syncFile.GetExtensions())
-            print()
+            Report("")
         else:
             Report("Extensions(s)".center(35, "=")+"\n", 1)
             Report("No Extensions found", 1)
@@ -397,13 +422,19 @@ def main():
         if syncFile.GetAllSites():
             Report("All Sites".center(35, "="))
             Report("{0} Sites found".format(len(syncFile.GetAllSites())).center(35, "_"), 1)
-            print()
+            Report("")
             DisplayData(syncFile.GetAllSites())
-            print()
+            Report("")
         else:
             Report("All Sites".center(35, "=")+"\n", 1)
             Report("No sites were found", 1)
             Report("", 1)
+
+        if outFile:
+            outFile.close()
+            outFile = False
+            Report("The out file has been closed.\n", 1)
+        Report("The Program has finished. Exiting now\n", 3)
 
 
 if __name__ == '__main__':
