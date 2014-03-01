@@ -7,6 +7,7 @@ import time
 import glob
 import platform
 
+verbosity = 3
 
 def ParseCommandLine():
     """
@@ -32,7 +33,7 @@ def ParseCommandLine():
                         help="Starting Path to where the database should recursively look for databases")
 
     # Verbose CLI argument, enables error printing etc.
-    parser.add_argument('-v', '--verbose', action='store_true',
+    parser.add_argument('-v', '--verbose', type=int, default=3,
                         help="Makes the program print extra information to the screen")
 
     return parser.parse_args()
@@ -52,26 +53,29 @@ def ValidateDatabase(filePath):
 def GetDatabases(startingPath):
     databaseList = []
 
-    if platform.system() == "Windows":
-        if platform.release() == "7":
+    try:
+        if platform.system() == "Windows":
+            if platform.release() == "7":
+                if startingPath:
+                    databasePath = startingPath + "\\Users\\*\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
+                else:
+                    databasePath = "C:\\Users\\*\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
+        elif platform.system() == "Windows":
+            if platform.release() == "XP":
+                if startingPath:
+                    databasePath = startingPath + "\\Documents and Settings\\*\\Application Support\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
+                else:
+                    databasePath = "C:\\Documents and Settings\\*\\Application Support\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
+        elif platform.system() == "Darwin":
             if startingPath:
-                databasePath = startingPath + "\\Users\\*\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
+                databasePath = startingPath +"/Users/*/Library/Application Support/Google/Chrome/Default/Sync Data/SyncData.sqlite3"
             else:
-                databasePath = "C:\\Users\\*\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
-    elif platform.system() == "Windows":
-        if platform.release() == "XP":
-            if startingPath:
-                databasePath = startingPath + "\\Documents and Settings\\*\\Application Support\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
-            else:
-                databasePath = "C:\\Documents and Settings\\*\\Application Support\\Google\\Chrome\\User Data\\Default\\Sync Data\\SyncData.sqlite3"
-    elif platform.system() == "Darwin":
-        if startingPath:
-            databasePath = startingPath +"/Users/*/Library/Application Support/Google/Chrome/Default/Sync Data/SyncData.sqlite3"
+                databasePath = "/Users/*/Library/Application Support/Google/Chrome/Default/Sync Data/SyncData.sqlite3"
         else:
-            databasePath = "/Users/*/Library/Application Support/Google/Chrome/Default/Sync Data/SyncData.sqlite3"
-    else:
-        print("ERROR: no system detected")
-        return databaseList
+            Report("ERROR: no system detected", 2)
+            return databaseList
+    except Exception as err:
+        Report(str(err),2)
 
     for file in glob.glob(databasePath):
         databaseList.append(SyncFile(file))
@@ -86,8 +90,11 @@ class SyncFile():
         self.cursor = self.connection.cursor()
 
         self.tables = []
-        self.SQLiteTables()
-
+        # Checks to see if the passed database is locked. If so, will raise the error and stop creating the object.
+        try:
+            self.SQLiteTables()
+        except lite.OperationalError as err:
+            raise err
         self.UserInfo()
 
         #for user in self.userAccount:
@@ -111,7 +118,10 @@ class SyncFile():
         Sets a list of the tables in the SQLite database should always be 5
             deleted_metas, metas, models, share_info, share_version
         """
-        self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        try:
+            self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        except lite.OperationalError as err:
+            raise err
         self.tables = self.cursor.fetchall()
         # Removes the tuple and returns just the names in the list
         self.tables = [i[0] for i in self.tables]
@@ -248,39 +258,59 @@ def DisplayData(data):
     if isinstance(data, list):
         for item in data:
             if len(item) == 2:
-                print(item[0].ljust(35, ":"), item[1].rjust(20, ":"))
+                Report(str(item[0].ljust(35, ":") + " " + item[1].rjust(20, ":")))
             else:
-                print(item)
+                Report(str(item))
     else:
-        print(data)
+        Report(str(data))
+
+
+def Report(msg, level=False):
+    """
+    Prints the msg based on the verbosity level. if no verbosity level passed, it will print the message.
+    Higher levels are more important. A 1 verbosity will print everything, a 2 will print level 2&3, a 3 will print 3
+    """
+
+    if not level:
+        print(msg)
+    elif level >= verbosity:
+        print(msg)
 
 
 def main():
+    global verbosity
+
     args = ParseCommandLine()
     syncList = []
+    verbosity = args.verbose
     if args.database:
-        syncList.append(SyncFile(args.database))
+        try:
+            syncList.append(SyncFile(args.database))
+        except Exception as err:
+            Report(err, 3)
     else:
-        syncList = GetDatabases(args.path)
-
+        try:
+            syncList = GetDatabases(args.path)
+        except Exception as err:
+            Report(err, 3)
 
     for syncFile in syncList:
-        print("Email Account".center(35, "="), "Time added".center(20, "="), "\n")
+        Report("Email Account".center(35, "=") +" "+ "Time added".center(20, "=") + "\n")
         DisplayData(syncFile.GetUserInfo())
         print()
-        print("Full Name".center(35, "="), "DOB (DDYYYY)".center(20, "="), "\n")
+        Report("Full Name".center(35, "=") + " "+"DOB (DDYYYY)".center(20, "=") + "\n")
         DisplayData(syncFile.GetFullInfo())
         print()
-        print("Computer Name".center(35, "="), "Time added".center(20, "="), "\n")
+        Report("Computer Name".center(35, "=")+" "+ "Time added".center(20, "=")+" "+ "\n")
         DisplayData(syncFile.GetAttachedComputers())
         print()
-        print("Recovery Email".center(35, "="), "\n")
+        Report("Recovery Email".center(35, "=")+" "+ "\n")
         DisplayData(syncFile.GetRecoveryEmail())
         print()
-        print("Recovery Phone".center(35, "="), "\n")
+        Report("Recovery Phone".center(35, "=")+" "+ "\n")
         DisplayData(syncFile.GetRecoveryPhone())
         print()
-        print("Extensions(s)".center(35, "="), "\n")
+        Report("Extensions(s)".center(35, "=")+" "+ "\n")
         DisplayData(syncFile.GetExtensions())
         print()
 
