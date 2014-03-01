@@ -772,28 +772,34 @@ def main():
         # Display the email account and the time it was added
         DisplayData(syncFile.GetUserInfo())
         Report("")
-        # If a full name and a DOB exist
+        # If a full name and a DOB exist print them
         if syncFile.GetFullInfo():
             Report("Full Name".center(35, "=")+" "+"DOB (DDYYYY)".center(20, "=")+"\n")
             DisplayData(syncFile.GetFullInfo())
             Report("")
         else:
+            # Print no full info only if verbosity level is set to see statuses
             Report("Full Name".center(35, "=")+" "+"DOB (DDYYYY)".center(20, "=")+"\n", 1)
             Report("No full info available", 1)
             Report("", 1)
+        # Print the computers attached to the account
         Report("Computer Name".center(35, "=")+" "+"Time added".center(20, "="))
+        # Print how many with verbosity of 1 (status)
         Report("{0} Computer(s) were synced".format(len(syncFile.GetAttachedComputers())).center(35, "_"), 1)
         Report("")
         DisplayData(syncFile.GetAttachedComputers())
         Report("")
+        # If Recovery email is set, print it
         if syncFile.GetRecoveryEmail():
             Report("Recovery Email".center(35, "=")+"\n")
             DisplayData(syncFile.GetRecoveryEmail())
             Report("")
         else:
+            # Print no recovery email, if verbosity level is 1
             Report("Recovery Email".center(35, "=")+"\n", 1)
             Report("No Recovery email found", 1)
             Report("", 1)
+        # Prints phone number if one was found
         if syncFile.GetRecoveryPhone():
             Report("Recovery Phone".center(35, "=")+"\n")
             DisplayData(syncFile.GetRecoveryPhone())
@@ -802,8 +808,10 @@ def main():
             Report("Recovery Phone".center(35, "=")+"\n", 1)
             Report("No Recovery phone found", 1)
             Report("", 1)
+        # Prints extensions if any were found
         if syncFile.GetExtensions():
             Report("Extensions(s)".center(35, "="))
+            # Prints how many extensions were found with verbosity of status
             Report("{0} Extensions were Found".format(len(syncFile.GetExtensions())).center(35, "_"), 1)
             Report("")
             DisplayData(syncFile.GetExtensions())
@@ -812,6 +820,7 @@ def main():
             Report("Extensions(s)".center(35, "=")+"\n", 1)
             Report("No Extensions found", 1)
             Report("", 1)
+        # Prints if any sites were found
         if syncFile.GetAllSites():
             Report("All Sites".center(35, "="))
             Report("{0} Sites found".format(len(syncFile.GetAllSites())).center(35, "_"), 1)
@@ -823,10 +832,14 @@ def main():
             Report("No sites were found", 1)
             Report("", 1)
 
+        # If an outfile was set, close it
         if outFile:
             outFile.close()
+            # Sets outFile to false for future report functions to work
             outFile = False
+            # Print status about file closing
             Report("The out file has been closed.\n", 1)
+        # Report that the program is finished
         Report("The Program has finished. Exiting now\n", 3)
 
 
