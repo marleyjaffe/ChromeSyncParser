@@ -185,7 +185,6 @@ class SyncFile():
         self.HTTPSSites()
         # End __init__ ====================================
 
-
     def SQLiteTables(self):
         """
         Name:           SQLiteTables
@@ -304,55 +303,153 @@ class SyncFile():
         # End GetAttachedComputers ========================
 
     def RecoveryEmail(self):
+        """
+        Name:           RecoveryEmail
+
+        Description:    Sets the recoveryEmail variable
+
+        Input:          None
+
+        Actions:        Adds recovery emails found in the metas table into the recoveryEmail list
+        """
+        # Sets the var to false to begin with.
         self.recoveryEmail = False
         for row in self.metadata:
             # b'\x8a\xbf\x0f5 is the signature for a recovery email
             if str(row[23])[:15] == "b'\\x8a\\xbf\\x0f5":
                 if self.recoveryEmail:
+                    # Adds other found email to the list
                     self.recoveryEmail.append(str(row[18])[36:])
                 else:
+                    # Sets the first found email to the first item in the list
                     self.recoveryEmail = [str(row[18])[36:]]
+        # End RecoveryEmail ===============================
 
     def GetRecoveryEmail(self):
+        """
+        Name:           GetRecoveryEmail
+
+        Description:    Returns the recoveryEmail var
+
+        Input:          None
+
+        Actions:        Returns the recoveryEmail var
+        """
         return self.recoveryEmail
+        # End GetRecoveryEmail ============================
 
     def FirstName(self):
+        """
+        Name:           FirstName
+
+        Description:    Sets the firstName variable
+
+        Input:          None
+
+        Actions:        Sets the firstName variable to either the found name or False
+        """
         self.firstName = False
         for row in self.metadata:
             name = str(row[18])[15:24]
             if name == "FirstName":
                 self.firstName = str(row[18][25:])
+        # End FirstName ===================================
 
     def GetFirstName(self):
+        """
+        Name:           GetFirstName
+
+        Description:    Returns the firstName Var
+
+        Input:          None
+
+        Actions:        Returns the firstName var
+        """
         return self.firstName
+        # End GetFirstName ================================
 
     def LastName(self):
+        """
+        Name:           LastName
+
+        Description:    Sets the lastName variable
+
+        Input:          None
+
+        Actions:        Sets the lastName variable to either the found name or False
+        """
         self.lastName = False
         for row in self.metadata:
             name = str(row[18])[15:23]
             if name == "LastName":
                 self.lastName = str(row[18][24:])
+        # End LastName ====================================
 
     def GetLastName(self):
+        """
+        Name:           GetLastName
+
+        Description:    Returns the lastName var
+
+        Input:          None
+
+        Actions:        Returns the lastName var
+        """
         return self.lastName
+        # End GetLastName =================================
 
     def GetFullName(self):
+        """
+        Name:           GetFullName
+
+        Description:    Concatenates the first and last name
+
+        Input:          None
+
+        Actions:        Checks if both the first and last name have content
+                            Concatenates the first and last name, adding a space in-between
+                        Returns the full name or false
+        """
         if self.firstName and self.lastName:
             return str(self.firstName + " " + self.lastName)
         else:
+            # If the first or last name do not exits a full name can not be found and return False
             return False
+        # End GetFullName =================================
 
     def DateOfBirth(self):
+        """
+        Name:           DateOfBirth
+
+        Description:    Sets the Date of Birth variable if data is found else sets it to False
+
+        Input:          None
+
+        Actions:        Sets DOB var to False
+                        Checks to see if date can be found, if so sets the var to it
+                        Uses dashes to indicate blanks, only used if only day or year not found
+                        Current data suggests only day and year are stored, code reflects as such
+        """
+        # Sets the DOB var to False
         self.DOB = False
+        # Loops through each line in the metadata var
         for row in self.metadata:
+            # Sets the value of row 18 to name
             name = str(row[18])[15:23]
+            # Checks if name is BirthDay
             if name == "BirthDay":
+                # Checks if the DOB is false or it has been initialized
                 if self.DOB:
+                    # Sets the value found to temporary date var
                     date = str(row[18][24:])
+                    # Checks to see if the date is a single digit
                     if len(date) == 1:
+                        # Adds a 0 before the single digit
                         date = "0"+ date
+                    # Adds the day to the beginning of the DOB value
                     self.DOB = date + self.DOB[2:]
                 else:
+                    # Creates a placeholder of dashes
                     self.DOB = "------"
                     date = str(row[18][24:])
                     if len(date) == 1:
@@ -360,29 +457,73 @@ class SyncFile():
                     self.DOB = date + self.DOB[2:]
             elif name == "BirthYea":
                 if self.DOB:
+                    # Preserves the set day value adds the year to the end
                     self.DOB = self.DOB[:2] + str(row[18][25:])
                 else:
                     self.DOB = "------"
                     self.DOB = self.DOB[:2] + str(row[18][25:])
+        # End DateOfBirth =================================
 
     def GetFullInfo(self):
+        """
+        Name:           GetFullInfo
+
+        Description:    Returns the full name and the DOB. Returns False if either of the values do not exist
+
+        Input:          None
+
+        Actions:        Returns the full name and the DOB in a list.
+                        Returns False if either of the values are set to False
+        """
         # Returns a list inside a list for printing unification
         if self.GetFullName() and self.DOB:
             return [[self.GetFullName(), self.DOB]]
         else:
             return False
+        # End GetFullInfo =================================
 
     def RecoveryPhoneNumber(self):
+        """
+        Name:           RecoveryPhoneNumber
+
+        Description:    Sets recoveryPhone var
+
+        Input:          None
+
+        Actions:        Sets recoveryPhone var to False
+                        Sets the var to the number if found
+        """
         self.recoveryPhone = False
         for row in self.metadata:
             name = str(row[18])[15:28]
             if name == "RecoveryPhone":
                 self.recoveryPhone = str(row[18][35:])
+        # End RecoveryPhoneNumber =========================
 
     def GetRecoveryPhone(self):
+        """
+        Name:           GetRecoveryPhone
+
+        Description:    Returns recoveryPhone Var
+
+        Input:          None
+
+        Actions:        Returns recoveryPhone Var
+        """
         return self.recoveryPhone
+        # End GetRecoveryPhone
 
     def Extensions(self):
+        """
+        Name:           Extensions
+
+        Description:    Returns a list of all extensions found in the metas table
+
+        Input:          None
+
+        Actions:        Sets var to False
+                        Adds Extension name to list if extension is found
+        """
         self.extension = False
         for row in self.metadata:
             if str(row[23])[:15] == "b'\\xba\\xbf\\x17i":
@@ -390,20 +531,59 @@ class SyncFile():
                     self.extension.append(str(row[18]))
                 else:
                     self.extension = [str(row[18])]
+        # End Extensions ==================================
 
     def GetExtensions(self):
-            return self.extension
+        """
+        Name:           GetExtensions
+
+        Description:    Returns extension var
+
+        Input:          None
+
+        Actions:        Returns extension var
+        """
+        return self.extension
+        # End GetExtensions ===============================
 
     def Encrypted(self):
+        """
+        Name:           Encrypted
+
+        Description:    Checks to see if records are encrypted
+
+        Input:          None
+
+        Actions:        Checks to see if metas table values are encrypted
+                            This will limit the amount of data obtainable
+                        Sets var to False
+                        If encryption is found
+                            Set encryption var to true
+                            Report that the database is encrypted
+        """
         self.encrypted = False
         for row in self.metadata:
             if str(row[18]) == "encrypted":
                 self.encrypted = True
+                # Report using level 1 due to some information being able to be found, just not all
                 Report(str("NOTE: The database located at: {0} is encrypted\n".format(self.database)), 1)
                 break
+        # End Encrypted ===================================
+
     def HTTPSites(self):
+        """
+        Name:           HTTPSites
+
+        Description:    Finds all HTTP sites and adds them to a list
+
+        Input:          None
+
+        Actions:        Sets HTTP var to false
+                        If http:// is found, add site to list
+        """
         self.http = False
         for row in self.metadata:
+            # Program was hanging on None values
             if row[18] == None:
                 continue
             elif str(row[18][:7]).lower() == "http://":
@@ -412,8 +592,19 @@ class SyncFile():
                     self.http.append(row[18])
                 else:
                     self.http = [row[18]]
+        # End HTTPSites ===================================
 
     def HTTPSSites(self):
+        """
+        Name:           HTTPSSites
+
+        Description:    Finds all HTTPS sites and adds them to a list
+
+        Input:          None
+
+        Actions:        Sets HTTPS var to false
+                        If https:// is found, add site to list
+        """
         self.https = False
         for row in self.metadata:
             if row[18] == None:
@@ -424,7 +615,21 @@ class SyncFile():
                     self.https.append(row[18])
                 else:
                     self.https = [row[18]]
+        # End HTTPSSites ==================================
+
     def GetAllSites(self):
+        """
+        Name:           GetAllSites
+
+        Description:    Returns all http and https sites in one list
+
+        Input:          None
+
+        Actions:        Checks to see if both http and https have data
+                        Returns the new list
+                        If only one list has data return that one
+                        Return False if both lists are False
+        """
         if self.http and self.https:
             return self.http + self.https
         elif not self.https and not self.http:
@@ -433,6 +638,7 @@ class SyncFile():
             return self.http
         else:
             return self.https
+        # End GetAllSites =================================
 
 def DisplayData(data):
     """
@@ -501,18 +707,18 @@ def main():
 
     for syncFile in syncList:
         Report("\nDatabase: {0}\n".format(syncFile.database).center(56))
-        Report("Email Account".center(35, "=") +" "+ "Time added".center(20, "=")+"\n")
+        Report("Email Account".center(35, "=")+" "+"Time added".center(20, "=")+"\n")
         DisplayData(syncFile.GetUserInfo())
         Report("")
         if syncFile.GetFullInfo():
-            Report("Full Name".center(35, "=") + " "+"DOB (DDYYYY)".center(20, "=")+"\n")
+            Report("Full Name".center(35, "=")+" "+"DOB (DDYYYY)".center(20, "=")+"\n")
             DisplayData(syncFile.GetFullInfo())
             Report("")
         else:
-            Report("Full Name".center(35, "=") + " "+"DOB (DDYYYY)".center(20, "=")+"\n", 1)
+            Report("Full Name".center(35, "=")+" "+"DOB (DDYYYY)".center(20, "=")+"\n", 1)
             Report("No full info available", 1)
             Report("", 1)
-        Report("Computer Name".center(35, "=")+" "+ "Time added".center(20, "="))
+        Report("Computer Name".center(35, "=")+" "+"Time added".center(20, "="))
         Report("{0} Computer(s) were synced".format(len(syncFile.GetAttachedComputers())).center(35, "_"), 1)
         Report("")
         DisplayData(syncFile.GetAttachedComputers())
